@@ -41,9 +41,22 @@ jq --arg d "$HOME" '.projects[$d].hasTrustDialogAccepted = true' "$CFG" > "$tmp"
 # 3) Stable session name shown in the claude.ai remote-control picker.
 SESSION="${REMOTE_CONTROL_SESSION:-claude-code-headless}"
 
-# 4) Launch under tmux, stream the pane to the container log, keep PID 1 alive.
+# 4) Resume the prior conversation on restart so the SAME claude.ai session
+#    reconnects, instead of a new one being created on every deploy. On the very
+#    first boot there is no transcript for this dir, so start fresh — guarding
+#    here avoids `claude --continue` erroring out and crash-looping the pod.
+PROJ="$HOME/.claude/projects/${HOME//\//-}"
+RESUME=
+if find "$PROJ" -maxdepth 1 -name '*.jsonl' -print -quit 2>/dev/null | grep -q .; then
+  RESUME="--continue "
+  echo "[entrypoint] Prior conversation found — resuming with --continue."
+else
+  echo "[entrypoint] No prior conversation — starting a fresh session."
+fi
+
+# 5) Launch under tmux, stream the pane to the container log, keep PID 1 alive.
 tmux kill-server 2>/dev/null || true
-tmux new-session -d -s claude -x 220 -y 50 "claude --remote-control \"$SESSION\""
+tmux new-session -d -s claude -x 220 -y 50 "claude ${RESUME}--remote-control \"$SESSION\""
 tmux pipe-pane -t claude -o 'cat >> /proc/1/fd/1' || true
 
 echo "[entrypoint] Remote-control session '$SESSION' started."
