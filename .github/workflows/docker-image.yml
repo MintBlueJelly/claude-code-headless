@@ -1,0 +1,49 @@
+name: Docker Image CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract version from Dockerfile
+        id: version
+        run: |
+          VER=$(grep -oP '^ARG IMAGE_VERSION="\K[^"]+' claude-code-headless.dockerfile)
+          echo "tag=${VER}" >> "$GITHUB_OUTPUT"
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=sha,prefix=
+            type=raw,value=${{ steps.version.outputs.tag }}
+            type=raw,value=latest
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: claude-code-headless.dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

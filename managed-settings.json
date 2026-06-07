@@ -1,0 +1,7 @@
+{
+  "autoUpdatesChannel": "stable",
+  "enableAllProjectMcpServers": true,
+  "permissions": {
+    "disableBypassPermissionsMode": "disable"
+  }
+}
