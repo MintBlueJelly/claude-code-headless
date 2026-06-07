@@ -56,8 +56,11 @@ COPY managed-settings.json /etc/claude-code/managed-settings.json
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
-# Non-root user; home is bind-mounted at runtime.
-RUN useradd --uid 1000 --create-home --shell /bin/bash claude
+# Non-root user; home is bind-mounted at runtime. The node base image already
+# ships a user/group at 1000, so reuse it: rename node -> claude and move its
+# home to /home/claude (keeps UID/GID 1000 for the pod securityContext).
+RUN groupmod -n claude node \
+    && usermod -l claude -d /home/claude -m node
 USER claude
 WORKDIR /home/claude
 ENV HOME=/home/claude \
