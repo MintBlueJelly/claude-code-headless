@@ -30,13 +30,29 @@ Talos, Omni, Home Assistant, OpenObserve, UniFi, Technitium, Gitea).
 
 ## Runtime env vars
 
-| Var                       | Default                | Purpose                                       |
-| ------------------------- | ---------------------- | --------------------------------------------- |
-| `REMOTE_CONTROL_SESSION`  | `claude-code-headless` | session name in the claude.ai picker          |
-| `CLAUDE_CODE_CHANNEL`     | `stable`               | release channel when no version is pinned     |
-| `CLAUDE_CODE_VERSION`     | _(unset)_              | pin an exact version; disables auto-update    |
-| `CLAUDE_CODE_OAUTH_TOKEN` | _(secret)_             | headless auth; mint with `claude setup-token` |
-| `GH_TOKEN`                | _(unset)_              | for GitHub API access in `gh` CLI             |
+| Var                      | Default                | Purpose                                    |
+| ------------------------ | ---------------------- | ------------------------------------------ |
+| `CLAUDE_CODE_CHANNEL`    | `stable`               | release channel when no version is pinned  |
+| `CLAUDE_CODE_VERSION`    | _(unset)_              | pin an exact version; disables auto-update |
+| `GH_TOKEN`               | _(unset)_              | for GitHub API access in `gh` CLI          |
+| `REMOTE_CONTROL_SESSION` | `claude-code-headless` | session name in the claude.ai picker       |
+
+## Authentication (one-time, interactive)
+
+Remote Control requires a **claude.ai subscription** OAuth login and rejects
+API keys / `setup-token` (`CLAUDE_CODE_OAUTH_TOKEN`). Do **not** set
+`ANTHROPIC_API_KEY` — if present it blocks Remote Control. Authenticate once
+into the persisted home volume:
+
+```bash
+kubectl exec -it claude-code-0 -- tmux attach -t claude
+# In the session: choose the claude.ai subscription option, open the printed
+# URL in a browser, paste the returned code, then accept the workspace-trust
+# dialog. Detach with Ctrl-b d.
+```
+
+The resulting `~/.claude/.credentials.json` lives on the PVC and auto-refreshes,
+so this survives pod restarts.
 
 ## Build
 
