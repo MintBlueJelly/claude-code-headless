@@ -19,26 +19,29 @@ RUN npm ci && npm run build
 # --- Final image -------------------------------------------------------------
 FROM docker.io/node:24-bookworm
 ARG KUBECTL_VERSION
+ARG TALOSCTL_VERSION
 
 # Runtimes the MCP servers need: node/npx (kubernetes, technitium), python+uv
 # (unifi plugin), git/gh (repo clones), plus cluster CLIs (kubectl, talosctl,
 # omnictl) for hands-on diagnostics and the remote-control session glue.
-RUN apt-get update \
+# --retry guards against transient 403/429/5xx from GitHub release downloads.
+RUN CURL="curl -fsSL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 10" \
+    && apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates curl git gnupg2 jq less procps python3 python3-venv \
         ripgrep tmux unzip \
-    && curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+    && $CURL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
         -o /usr/share/keyrings/githubcli-archive-keyring.gpg \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
         > /etc/apt/sources.list.d/github-cli.list \
     && apt-get update && apt-get install -y --no-install-recommends gh \
-    && curl -fsSL "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/amd64/kubectl" \
+    && $CURL "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/amd64/kubectl" \
         -o /usr/local/bin/kubectl && chmod +x /usr/local/bin/kubectl \
-    && curl -fsSL "https://github.com/siderolabs/talos/releases/download/v${TALOSCTL_VERSION}/talosctl-linux-amd64" \
+    && $CURL "https://github.com/siderolabs/talos/releases/download/v${TALOSCTL_VERSION}/talosctl-linux-amd64" \
         -o /usr/local/bin/talosctl && chmod +x /usr/local/bin/talosctl \
-    && curl -fsSL "https://github.com/siderolabs/omni/releases/latest/download/omnictl-linux-amd64" \
+    && $CURL "https://github.com/siderolabs/omni/releases/latest/download/omnictl-linux-amd64" \
         -o /usr/local/bin/omnictl && chmod +x /usr/local/bin/omnictl \
-    && curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh \
+    && $CURL https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh \
     && rm -rf /var/lib/apt/lists/*
 
 # Baked MCP servers
