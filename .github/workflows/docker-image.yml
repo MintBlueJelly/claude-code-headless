@@ -65,3 +65,15 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           custom_tag: ${{ steps.ver.outputs.new_version }}
+
+      # Publish a GitHub Release for that tag, using the auto-generated changelog.
+      - name: Create GitHub release
+        if: github.event_name != 'pull_request' && success()
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ver.outputs.new_tag }}
+          name: ${{ steps.ver.outputs.new_tag }}
+          body: |
+            ${{ steps.ver.outputs.changelog }}
+
+            **Image:** `ghcr.io/${{ github.repository }}:${{ steps.ver.outputs.new_version }}`
