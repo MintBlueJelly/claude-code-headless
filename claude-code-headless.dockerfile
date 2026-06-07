@@ -7,7 +7,7 @@ ARG KUBECTL_VERSION="1.35.2"
 ARG TALOSCTL_VERSION="1.12.4"
 
 # --- Build gitea-mcp (Go) ----------------------------------------------------
-FROM docker.io/golang:1.23-bookworm AS gitea-mcp
+FROM docker.io/golang:1.26-bookworm AS gitea-mcp
 RUN go install gitea.com/gitea/gitea-mcp@latest
 
 # --- Build technitium-mcp (TypeScript -> dist) -------------------------------
