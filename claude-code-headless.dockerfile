@@ -2,7 +2,7 @@
 # Claude Code itself is NOT baked in: it is installed at runtime into the
 # bind-mounted home dir (see entrypoint.sh) and self-updates from there, so a
 # new CLI release does not require an image rebuild.
-ARG IMAGE_VERSION="1.0.0"
+ARG IMAGE_VERSION="1.0.1"
 ARG KUBECTL_VERSION="1.35.2"
 ARG TALOSCTL_VERSION="1.12.4"
 

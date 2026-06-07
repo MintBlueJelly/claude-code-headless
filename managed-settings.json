@@ -15,6 +15,7 @@
       "Bash(git status:*)",
       "Bash(host:*)",
       "Bash(kubectl api-resources:*)",
+      "Bash(kubectl auth:*)",
       "Bash(kubectl config view:*)",
       "Bash(kubectl describe:*)",
       "Bash(kubectl explain:*)",
