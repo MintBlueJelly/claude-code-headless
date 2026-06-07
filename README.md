@@ -62,10 +62,10 @@ Dockerfile when the base image or baked tooling changes.
 
 ## Usage
 
-The Unifi plugin needs to be installed and configured manually on first run (credentials are pulled from ENV variables):
+The Unifi plugin needs to be installed manually on first run:
 
 ```bash
 /plugin marketplace add sirkirby/unifi-mcp
 /plugin install unifi-network@unifi-plugins
-/unifi-network:setup
+/unifi-network:setup # only required if ENV vars for auto-setup are not set
 ```
