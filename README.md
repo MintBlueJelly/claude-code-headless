@@ -1,4 +1,4 @@
-# claude-code-remote
+# claude-code-headless
 
 A long-running [Claude Code](https://code.claude.com) workload for container
 deployments. It runs the CLI in **remote-control mode** (`claude --remote-control <session>`),
