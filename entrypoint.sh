@@ -29,10 +29,19 @@ if ! command -v claude >/dev/null 2>&1; then
 fi
 echo "[entrypoint] Claude Code: $(claude --version 2>/dev/null || echo unknown)"
 
-# 2) Stable session name shown in the claude.ai remote-control picker.
+# 2) Pre-trust the workspace dir. GitOps deploys change auto-executing config
+#    (.mcp.json, CLAUDE.md), which otherwise re-triggers the "trust this folder"
+#    dialog on every restart and blocks the headless session. We control this
+#    config, so mark the workspace trusted idempotently before launch.
+CFG="$HOME/.claude.json"
+[ -f "$CFG" ] || echo '{}' > "$CFG"
+tmp="$(mktemp)"
+jq --arg d "$HOME" '.projects[$d].hasTrustDialogAccepted = true' "$CFG" > "$tmp" && mv "$tmp" "$CFG"
+
+# 3) Stable session name shown in the claude.ai remote-control picker.
 SESSION="${REMOTE_CONTROL_SESSION:-claude-code-headless}"
 
-# 3) Launch under tmux, stream the pane to the container log, keep PID 1 alive.
+# 4) Launch under tmux, stream the pane to the container log, keep PID 1 alive.
 tmux kill-server 2>/dev/null || true
 tmux new-session -d -s claude -x 220 -y 50 "claude --remote-control \"$SESSION\""
 tmux pipe-pane -t claude -o 'cat >> /proc/1/fd/1' || true
