@@ -56,7 +56,7 @@ so this survives pod restarts.
 
 ## Build
 
-CI builds and pushes to `ghcr.io/<owner>/claude-code-headless` on push to `main`
+CI builds and pushes to `ghcr.io/MintBlueJelly/claude-code-headless` on push to `main`
 (see `.github/workflows/docker-image.yml`). Bump `ARG IMAGE_VERSION` in the
 Dockerfile when the base image or baked tooling changes.
 
