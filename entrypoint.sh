@@ -47,11 +47,18 @@ jq --arg d "$HOME" '.projects[$d].hasTrustDialogAccepted = true' "$CFG" > "$tmp"
 # straight from OMNI_ENDPOINT + OMNI_SERVICE_ACCOUNT_KEY (no config file). talosctl
 # additionally needs an Omni-proxied talosconfig — generate it here (talosctl then
 # signs each call with the same SA key). Best-effort; a no-op when Omni is unset.
+# `omnictl talosconfig` *merges* into the target and renames colliding contexts
+# (polaris-omni-zenith -> -2 -> -3 ...), so write to a fresh file and swap it in
+# atomically — one clean context, no pile-up, no missing-file window for talosctl.
 if [ -n "${OMNI_SERVICE_ACCOUNT_KEY:-}" ] && [ -n "${OMNI_ENDPOINT:-}" ]; then
   mkdir -p "$HOME/.talos"
-  if omnictl talosconfig -f ${OMNI_CLUSTER:+--cluster "$OMNI_CLUSTER"}; then
+  TC_NEW="$HOME/.talos/config.new"
+  rm -f "$TC_NEW"
+  if omnictl talosconfig --talosconfig "$TC_NEW" ${OMNI_CLUSTER:+--cluster "$OMNI_CLUSTER"}; then
+    mv -f "$TC_NEW" "$HOME/.talos/config"
     echo "[entrypoint] Omni talosconfig generated (talosctl proxies via Omni)."
   else
+    rm -f "$TC_NEW"
     echo "[entrypoint] WARN: omnictl talosconfig failed; talosctl unconfigured."
   fi
 fi
