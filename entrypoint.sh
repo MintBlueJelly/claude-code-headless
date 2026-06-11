@@ -1,11 +1,16 @@
 #!/usr/bin/env bash
-# PID 1 of the claude-code-remote pod.
+# PID 1 of the claude-code pod.
 #
-# Installs/locates the Claude Code CLI on the bind-mounted home dir, then runs it
-# in remote-control mode under tmux so that:
-#   * claude.ai can pair to the session (outbound, no ingress required), and
+# Installs/locates the Claude Code CLI on the bind-mounted home dir, then runs an
+# interactive session (with Remote Control enabled) under tmux. Three concurrent
+# clients share that one session:
+#   * claude.ai pairs to it (outbound, no ingress required),
+#   * ttyd serves it as an OIDC-gated web console on :7681, and
 #   * `kubectl exec -it <pod> -- tmux attach -t claude` gives a live terminal.
-# The tmux pane is streamed to PID 1 stdout so `kubectl logs` still works.
+# Session output is deliberately NOT streamed to the container log: a diagnostics
+# agent routinely prints secrets, and `kubectl logs` would forward them to
+# OpenObserve. Live view is the web console / tmux attach; conversation history is
+# the persisted transcript on the PVC.
 set -euo pipefail
 
 BIN="$HOME/.local/bin"
@@ -38,32 +43,64 @@ CFG="$HOME/.claude.json"
 tmp="$(mktemp)"
 jq --arg d "$HOME" '.projects[$d].hasTrustDialogAccepted = true' "$CFG" > "$tmp" && mv "$tmp" "$CFG"
 
-# 3) Stable session name shown in the claude.ai remote-control picker.
+# 3) Stable session name shown in the claude.ai remote-control picker (display only).
 SESSION="${REMOTE_CONTROL_SESSION:-claude-code-headless}"
 
-# 4) Resume the prior conversation on restart so the SAME claude.ai session
-#    reconnects, instead of a new one being created on every deploy. On the very
-#    first boot there is no transcript for this dir, so start fresh — guarding
-#    here avoids `claude --continue` erroring out and crash-looping the pod.
+# 4) Pin a fixed conversation UUID, persisted on the bind-mounted home dir, so the
+#    SAME claude.ai remote session reconnects on every restart instead of a new
+#    (orphaned) one being spawned. The remote session is keyed to the local session
+#    id — not the display name — so a stable id is the only firm guarantee. First
+#    boot (no id, or its transcript is gone) creates the conversation with
+#    --session-id; later boots resume that exact id. Never --fork-session (mints a
+#    new id) and never --continue (resumes whatever is *most recent*, which can
+#    silently switch conversations).
+SIDFILE="$HOME/.claude/remote-session-id"
 PROJ="$HOME/.claude/projects/${HOME//\//-}"
-RESUME=
-if find "$PROJ" -maxdepth 1 -name '*.jsonl' -print -quit 2>/dev/null | grep -q .; then
-  RESUME="--continue "
-  echo "[entrypoint] Prior conversation found — resuming with --continue."
+SID=""
+[ -f "$SIDFILE" ] && SID="$(cat "$SIDFILE")"
+if [ -n "$SID" ] && [ -f "$PROJ/$SID.jsonl" ]; then
+  MODE="--resume $SID"
+  echo "[entrypoint] Resuming pinned session $SID."
 else
-  echo "[entrypoint] No prior conversation — starting a fresh session."
+  SID="$(cat /proc/sys/kernel/random/uuid)"
+  echo "$SID" > "$SIDFILE"
+  MODE="--session-id $SID"
+  echo "[entrypoint] No prior transcript — creating pinned session $SID."
 fi
 
-# 5) Launch under tmux, stream the pane to the container log, keep PID 1 alive.
-tmux kill-server 2>/dev/null || true
-tmux new-session -d -s claude -x 220 -y 50 "claude ${RESUME}--remote-control \"$SESSION\""
-tmux pipe-pane -t claude -o 'cat >> /proc/1/fd/1' || true
+# 5) Launch the interactive session under tmux with Remote Control, plus the ttyd
+#    web console as a second client. On SIGTERM/SIGINT, tear the session down
+#    cleanly so the server-side remote entry closes promptly (within
+#    terminationGracePeriodSeconds) instead of lingering as a ghost.
+cleanup() {
+  echo "[entrypoint] Stopping web console and tmux session…"
+  kill "${TTYD_PID:-}" 2>/dev/null || true
+  tmux kill-session -t claude 2>/dev/null || true
+}
+trap 'cleanup; exit 0' TERM INT
 
-echo "[entrypoint] Remote-control session '$SESSION' started."
+tmux kill-server 2>/dev/null || true
+tmux new-session -d -s claude -x 220 -y 50 "claude $MODE --remote-control \"$SESSION\""
+# Keep the pane at a fixed size (don't let a small web/exec client reflow it) and
+# enable mouse mode so touchpad/wheel scrolling works instead of emitting cursor
+# Up/Down keys (hold Shift for native terminal text selection).
+tmux set-option -g window-size manual
+tmux set-option -g mouse on
+
+# Web console: another writable client of the same session. Interactive (-W);
+# access is gated upstream by the OIDC HTTPRoute, so no ttyd-level auth here.
+ttyd -W -p 7681 -i 0.0.0.0 tmux attach -t claude &
+TTYD_PID=$!
+
+echo "[entrypoint] Remote-control session '$SESSION' started (web console on :7681)."
 echo "[entrypoint] Attach: kubectl exec -it <pod> -- tmux attach -t claude"
 
+# Keep PID 1 alive while the session runs. `sleep & wait` (not a bare sleep) so a
+# SIGTERM interrupts the wait promptly and the trap can run.
 while tmux has-session -t claude 2>/dev/null; do
-  sleep 15
+  sleep 15 &
+  wait $!
 done
 
+cleanup
 echo "[entrypoint] tmux session ended; exiting so the pod can restart."

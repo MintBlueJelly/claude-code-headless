@@ -5,6 +5,7 @@
 # new CLI release does not require an image rebuild.
 ARG KUBECTL_VERSION="1.35.2"
 ARG TALOSCTL_VERSION="1.12.4"
+ARG TTYD_VERSION="1.7.7"
 
 # --- Build gitea-mcp (Go) ----------------------------------------------------
 FROM docker.io/golang:1.26-bookworm AS gitea-mcp
@@ -20,10 +21,12 @@ RUN npm ci && npm run build
 FROM docker.io/node:24-bookworm
 ARG KUBECTL_VERSION
 ARG TALOSCTL_VERSION
+ARG TTYD_VERSION
 
 # Runtimes the MCP servers need: node/npx (kubernetes, technitium), python+uv
 # (unifi plugin), git/gh (repo clones), plus cluster CLIs (kubectl, talosctl,
-# omnictl) for hands-on diagnostics and the remote-control session glue.
+# omnictl) for hands-on diagnostics and the remote-control session glue. ttyd
+# serves the interactive tmux session as an OIDC-gated web console.
 # --retry guards against transient 403/429/5xx from GitHub release downloads.
 RUN CURL="curl -fsSL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 10" \
     && apt-get update \
@@ -41,6 +44,8 @@ RUN CURL="curl -fsSL --retry 5 --retry-all-errors --retry-delay 2 --connect-time
         -o /usr/local/bin/talosctl && chmod +x /usr/local/bin/talosctl \
     && $CURL "https://github.com/siderolabs/omni/releases/latest/download/omnictl-linux-amd64" \
         -o /usr/local/bin/omnictl && chmod +x /usr/local/bin/omnictl \
+    && $CURL "https://github.com/tsl0922/ttyd/releases/download/${TTYD_VERSION}/ttyd.x86_64" \
+        -o /usr/local/bin/ttyd && chmod +x /usr/local/bin/ttyd \
     && $CURL https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh \
     && rm -rf /var/lib/apt/lists/*
 
@@ -48,10 +53,6 @@ RUN CURL="curl -fsSL --retry 5 --retry-all-errors --retry-delay 2 --connect-time
 COPY --from=gitea-mcp /go/bin/gitea-mcp /usr/local/bin/gitea-mcp
 COPY --from=technitium-mcp /src/dist /opt/technitium-mcp/dist
 COPY --from=technitium-mcp /src/node_modules /opt/technitium-mcp/node_modules
-
-# Org policy: highest-precedence managed settings (lock bypass mode, etc.)
-RUN mkdir -p /etc/claude-code
-COPY managed-settings.json /etc/claude-code/managed-settings.json
 
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
