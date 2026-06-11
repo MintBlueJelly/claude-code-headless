@@ -43,6 +43,19 @@ CFG="$HOME/.claude.json"
 tmp="$(mktemp)"
 jq --arg d "$HOME" '.projects[$d].hasTrustDialogAccepted = true' "$CFG" > "$tmp" && mv "$tmp" "$CFG"
 
+# Optional Omni wiring: when a service account is configured, omnictl authenticates
+# straight from OMNI_ENDPOINT + OMNI_SERVICE_ACCOUNT_KEY (no config file). talosctl
+# additionally needs an Omni-proxied talosconfig — generate it here (talosctl then
+# signs each call with the same SA key). Best-effort; a no-op when Omni is unset.
+if [ -n "${OMNI_SERVICE_ACCOUNT_KEY:-}" ] && [ -n "${OMNI_ENDPOINT:-}" ]; then
+  mkdir -p "$HOME/.talos"
+  if omnictl talosconfig -f ${OMNI_CLUSTER:+--cluster "$OMNI_CLUSTER"}; then
+    echo "[entrypoint] Omni talosconfig generated (talosctl proxies via Omni)."
+  else
+    echo "[entrypoint] WARN: omnictl talosconfig failed; talosctl unconfigured."
+  fi
+fi
+
 # 3) Stable session name shown in the claude.ai remote-control picker (display only).
 SESSION="${REMOTE_CONTROL_SESSION:-claude-code-headless}"
 
