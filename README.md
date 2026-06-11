@@ -51,13 +51,14 @@ Talos, Omni, Home Assistant, OpenObserve, UniFi, Technitium, Gitea).
 
 ## Runtime env vars
 
-| Var                      | Default                | Purpose                                    |
-| ------------------------ | ---------------------- | ------------------------------------------ |
-| `CLAUDE_CODE_CHANNEL`    | `stable`               | release channel when no version is pinned  |
-| `CLAUDE_CODE_VERSION`    | _(unset)_              | pin an exact version; disables auto-update |
-| `REMOTE_CONTROL_SESSION` | `claude-code-headless` | session name in the claude.ai picker       |
-| `GH_TOKEN`               | _(unset)_              | GitHub API access for the `gh` CLI         |
-| `TZ`                     | _(unset)_              | container timezone, e.g. `Europe/Berlin`   |
+| Var                      | Default                | Purpose                                      |
+| ------------------------ | ---------------------- | -------------------------------------------- |
+| `CLAUDE_CODE_CHANNEL`    | `stable`               | release channel when no version is pinned    |
+| `CLAUDE_CODE_VERSION`    | _(unset)_              | pin an exact version; disables auto-update   |
+| `REMOTE_CONTROL_SESSION` | `claude-code-headless` | session name in the claude.ai picker         |
+| `WEB_CONSOLE_TITLE`      | `Claude Code`          | fixed browser tab title for the ttyd console |
+| `GH_TOKEN`               | _(unset)_              | GitHub API access for the `gh` CLI           |
+| `TZ`                     | _(unset)_              | container timezone, e.g. `Europe/Berlin`     |
 
 Beyond `GH_TOKEN`, the agent reads whatever MCP/CLI tokens your `.mcp.json`
 references (e.g. `GITEA_ACCESS_TOKEN`, `OPENOBSERVE_TOKEN`, `TECHNITIUM_*_TOKEN`,

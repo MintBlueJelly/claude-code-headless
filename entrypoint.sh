@@ -89,7 +89,9 @@ tmux set-option -g mouse on
 
 # Web console: another writable client of the same session. Interactive (-W);
 # access is gated upstream by the OIDC HTTPRoute, so no ttyd-level auth here.
-ttyd -W -p 7681 -i 0.0.0.0 tmux attach -t claude &
+# titleFixed pins the browser tab title (else it shows the tmux attach command).
+TITLE="${WEB_CONSOLE_TITLE:-Claude Code}"
+ttyd -W -t "titleFixed=$TITLE" -p 7681 -i 0.0.0.0 tmux attach -t claude &
 TTYD_PID=$!
 
 echo "[entrypoint] Remote-control session '$SESSION' started (web console on :7681)."
