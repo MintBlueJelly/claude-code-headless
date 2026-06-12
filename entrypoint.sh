@@ -94,18 +94,28 @@ fi
 #    terminationGracePeriodSeconds) instead of lingering as a ghost.
 cleanup() {
   echo "[entrypoint] Stopping web console and tmux session…"
-  kill "${TTYD_PID:-}" 2>/dev/null || true
+  kill "${TTYD_PID:-}" "${ANCHOR_PID:-}" 2>/dev/null || true
   tmux kill-session -t claude 2>/dev/null || true
 }
 trap 'cleanup; exit 0' TERM INT
 
 tmux kill-server 2>/dev/null || true
-tmux new-session -d -s claude -x 220 -y 50 "claude $MODE --remote-control \"$SESSION\""
-# Keep the pane at a fixed size (don't let a small web/exec client reflow it) and
-# enable mouse mode so touchpad/wheel scrolling works instead of emitting cursor
-# Up/Down keys (hold Shift for native terminal text selection).
-tmux set-option -g window-size manual
+tmux new-session -d -s claude -x 180 -y 50 "claude $MODE --remote-control \"$SESSION\""
+# Size the window to the LARGEST attached client so a real laptop terminal gets
+# its full width/height, while a persistent off-screen anchor client (below)
+# pins a 180x50 floor — a small web/mobile client can't shrink the window (and
+# reflow the TUI) below that minimum. Mouse mode lets touchpad/wheel scroll
+# instead of emitting cursor Up/Down (hold Shift for native text selection).
+tmux set-option -g window-size largest
 tmux set-option -g mouse on
+
+# Floor anchor: a control-mode client fixed at the minimum size. tmux only counts
+# a control client toward sizing once it's given a size via 'refresh-client -C',
+# so this 180x50 client becomes the lower bound for 'window-size largest'. The
+# trailing 'sleep' holds the pipe — and thus the client — open for the pod's life.
+{ printf 'refresh-client -C 180x50\n'; exec sleep infinity; } | \
+  tmux -C attach -t claude >/dev/null 2>&1 &
+ANCHOR_PID=$!
 
 # Web console: another writable client of the same session. Interactive (-W);
 # access is gated upstream by the OIDC HTTPRoute, so no ttyd-level auth here.
