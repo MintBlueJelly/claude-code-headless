@@ -99,21 +99,26 @@ cleanup() {
 }
 trap 'cleanup; exit 0' TERM INT
 
+# Minimum terminal size, enforced by the floor anchor below. Overridable so a
+# deployment can widen/narrow the floor without rebuilding the image.
+FLOOR_COLS="${TMUX_FLOOR_COLS:-120}"
+FLOOR_ROWS="${TMUX_FLOOR_ROWS:-40}"
+
 tmux kill-server 2>/dev/null || true
-tmux new-session -d -s claude -x 180 -y 50 "claude $MODE --remote-control \"$SESSION\""
+tmux new-session -d -s claude -x "$FLOOR_COLS" -y "$FLOOR_ROWS" "claude $MODE --remote-control \"$SESSION\""
 # Size the window to the LARGEST attached client so a real laptop terminal gets
 # its full width/height, while a persistent off-screen anchor client (below)
-# pins a 180x50 floor — a small web/mobile client can't shrink the window (and
-# reflow the TUI) below that minimum. Mouse mode lets touchpad/wheel scroll
-# instead of emitting cursor Up/Down (hold Shift for native text selection).
+# pins a floor — a small web/mobile client can't shrink the window (and reflow
+# the TUI) below that minimum. Mouse mode lets touchpad/wheel scroll instead
+# of emitting cursor Up/Down (hold Shift for native text selection).
 tmux set-option -g window-size largest
 tmux set-option -g mouse on
 
 # Floor anchor: a control-mode client fixed at the minimum size. tmux only counts
 # a control client toward sizing once it's given a size via 'refresh-client -C',
-# so this 180x50 client becomes the lower bound for 'window-size largest'. The
-# trailing 'sleep' holds the pipe — and thus the client — open for the pod's life.
-{ printf 'refresh-client -C 180x50\n'; exec sleep infinity; } | \
+# so this client becomes the lower bound for 'window-size largest'. The trailing
+# 'sleep' holds the pipe — and thus the client — open for the pod's life.
+{ printf 'refresh-client -C %sx%s\n' "$FLOOR_COLS" "$FLOOR_ROWS"; exec sleep infinity; } | \
   tmux -C attach -t claude >/dev/null 2>&1 &
 ANCHOR_PID=$!
 

@@ -55,10 +55,12 @@ Talos, Omni, Home Assistant, OpenObserve, UniFi, Technitium, Gitea).
 | ------------------------ | ---------------------- | -------------------------------------------- |
 | `CLAUDE_CODE_CHANNEL`    | `stable`               | release channel when no version is pinned    |
 | `CLAUDE_CODE_VERSION`    | _(unset)_              | pin an exact version; disables auto-update   |
-| `REMOTE_CONTROL_SESSION` | `claude-code-headless` | session name in the claude.ai picker         |
-| `WEB_CONSOLE_TITLE`      | `Claude Code`          | fixed browser tab title for the ttyd console |
 | `GH_TOKEN`               | _(unset)_              | GitHub API access for the `gh` CLI           |
+| `REMOTE_CONTROL_SESSION` | `claude-code-headless` | session name in the claude.ai picker         |
+| `TMUX_FLOOR_COLS`        | `120`                  | minimum terminal width (cols) for the floor  |
+| `TMUX_FLOOR_ROWS`        | `40`                   | minimum terminal height (rows) for the floor |
 | `TZ`                     | _(unset)_              | container timezone, e.g. `Europe/Berlin`     |
+| `WEB_CONSOLE_TITLE`      | `Claude Code`          | fixed browser tab title for the ttyd console |
 
 Beyond `GH_TOKEN`, the agent reads whatever MCP/CLI tokens your `.mcp.json`
 references (e.g. `GITEA_ACCESS_TOKEN`, `OPENOBSERVE_TOKEN`, `TECHNITIUM_*_TOKEN`,
