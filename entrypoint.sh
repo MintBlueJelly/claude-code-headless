@@ -113,6 +113,11 @@ tmux new-session -d -s claude -x "$FLOOR_COLS" -y "$FLOOR_ROWS" "claude $MODE --
 # of emitting cursor Up/Down (hold Shift for native text selection).
 tmux set-option -g window-size largest
 tmux set-option -g mouse on
+# Forward tmux copy-mode selections to the client's local clipboard via OSC 52, so
+# a normal (no-Shift) mouse drag copies straight out of the remote session — works
+# in-band for both ttyd and 'kubectl exec' clients, unlike Shift-select which only
+# reaches the local renderer's native selection.
+tmux set-option -g set-clipboard on
 
 # Floor anchor: a control-mode client fixed at the minimum size. tmux only counts
 # a control client toward sizing once it's given a size via 'refresh-client -C',
